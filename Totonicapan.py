@@ -70,19 +70,25 @@ def get_master_cell(ws, r_idx, c_idx):
 
 def fuzzy_match_category(description, cultivados, abarrotes, threshold=80):
     """
-    Matches a description against cultivados/abarrotes keyword lists using
-    accent-insensitive, word-boundary substring matching on the normalized text.
+    Accent-insensitive, word-boundary matching with Spanish plural tolerance.
+    Handles pdfplumber multi-line cells and concatenated units like 'espagueti180g'.
     """
     if not description:
         return ('unmatched', None)
 
     desc_norm = normalize_text(description)
+    # Collapse newlines/tabs/repeated whitespace from multi-line PDF cells
+    desc_norm = re.sub(r'\s+', ' ', desc_norm).strip()
+    # Split letter/digit runs so "espagueti180g" -> "espagueti 180 g"
+    desc_norm = re.sub(r'([a-z])(\d)', r'\1 \2', desc_norm)
+    desc_norm = re.sub(r'(\d)([a-z])', r'\1 \2', desc_norm)
 
+    # (e?s)? tolerates Spanish plurals: banano/bananos, limon/limones, etc.
     for kw in cultivados:
-        if re.search(r'\b' + re.escape(kw) + r'\b', desc_norm):
+        if re.search(r'\b' + re.escape(kw) + r'(e?s)?\b', desc_norm):
             return ('agricultura', kw)
     for kw in abarrotes:
-        if re.search(r'\b' + re.escape(kw) + r'\b', desc_norm):
+        if re.search(r'\b' + re.escape(kw) + r'(e?s)?\b', desc_norm):
             return ('abarrotes', kw)
 
     return ('unmatched', None)
@@ -220,52 +226,72 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                     
                     cultivados = [
                         # frutas
-                        'banano', 'platano', 'pina', 'papaya', 'sandia', 'melon', 'mango',
-                        'naranja', 'limon', 'manzana', 'aguacate', 'jamaica', 'tamarindo',
+                        'banano', 'bananano',                         # triple-n typo
+                        'platano', 'pina', 'papaya', 'sandia', 'melon', 'mango',
+                        'naranja', 'limon', 'limom', 'limo',          # limon typos
+                        'manzana', 'aguacate', 'jamaica', 'tamarindo',
                         'guayaba', 'fresa', 'mora',
                         # verduras / hortalizas
                         'tomate', 'miltomate', 'cebolla', 'zanahoria', 'ejote',
-                        'guisquil', 'guicoy', 'ayote', 'calabaza', 'remolacha', 'repollo',
-                        'brocoli', 'coliflor', 'papa', 'camote', 'yuca', 'malanga',
+                        'guisquil', 'gusiquil', 'guisqul',            # guisquil typos
+                        'guicoy', 'ayote', 'calabaza', 'remolacha', 'repollo',
+                        'brocoli', 'brocoly',                          # brocoli typo
+                        'coliflor', 'papa', 'camote', 'yuca', 'malanga',
                         'espinaca', 'bledo', 'rabano', 'lechuga', 'pepino',
                         # hierbas / aromaticas
-                        'perejil', 'ajo', 'apio', 'cilantro', 'chipilin', 'hierba',
-                        'mashan', 'apazote', 'zacate', 'tusa',
+                        'perejil', 'ajo', 'apio', 'cilantro', 'chipilin',
+                        'hierba', 'hierba buena', 'hierbabuena', 'hirbabuena',
+                        'mashan', 'apazote', 'apasote',                # apazote misspelling
+                        'zacate', 'tusa',
                         # granos frescos
-                        'maiz', 'cebada', 'trigo', 'arveja', 'haba',
+                        'maiz', 'cebada', 'cabada',                    # cebada typo
+                        'trigo', 'arveja', 'haba',
                         # chiles cultivados (qualified only — bare "chile" stays unmatched)
-                        'chile pimiento', 'chile pasa', 'chile guaque', 'chile cobanero',
-                        'chile verde', 'chile jalapeno', 'chile chiltepe', 'chile dulce',
-                        'chile morron', 'chile chocolate',
-                        # frijol cultivado (fresh / in pod)
+                        'chile pimiento', 'chile pimento',             # pimento typo
+                        'chile pasa', 'chila pasa',                    # chila typo
+                        'chile guaque', 'chile guaca',                 # guaca typo (very common)
+                        'chile cobanero', 'chile verde', 'chile jalapeno', 'chile chiltepe',
+                        'chile dulce', 'chile morron', 'chile chocolate',
+                        # frijol cultivado
                         'frijol ejotero', 'frijol tierno',
                     ]
                     
                     abarrotes = [
                         # semillas secas / procesadas
-                        'ajonjoli', 'pepita', 'pepitoria', 'mani',
+                        'ajonjoli', 'ajonjolin',                       # ajonjoli variant spelling
+                        'pepita', 'pepitoria',
+                        'mani', 'mania',                               # mani typo
                         # proteina animal
                         'huevo', 'pollo', 'pechuga', 'pierna', 'muslo', 'res', 'carne',
                         'pescado', 'embutido', 'chorizo', 'salchicha', 'jamon',
                         # lacteos
                         'crema', 'leche', 'queso', 'yogur', 'mantequilla', 'margarina',
                         # panaderia
-                        'pan', 'tostada', 'tortilla', 'galleta', 'chocolate',
+                        'pan', 'pirujo',                               # "pirujo" sometimes appears without "pan"
+                        'tostada', 'tortilla', 'galleta', 'chocolate',
                         # pasta / cereales procesados
-                        'pasta', 'espagueti', 'fideo', 'macarron', 'avena', 'corazon de trigo',
-                        'chaomein', 'chow mein', 'chao mein',
+                        'pasta', 'espagueti', 'fideo', 'macarron',
+                        'codito',                                      # catches "pasta codito" / "pasto codito"
+                        'avena', 'abena',                              # avena typo
+                        'corazon de trigo',
+                        'chaomein', 'chow mein', 'chao mein', 'chaumein', 'cahomein',
+                        'mosh',                                        # Guatemalan oatmeal (mosh quaker)
                         # harinas / mezclas
                         'maseca', 'incaparina', 'protemas', 'atol', 'harina', 'pinol',
                         # aceites / condimentos
-                        'aceite', 'sal', 'azucar', 'vinagre', 'achiote', 'canela',
-                        'laurel', 'tomillo', 'clavo', 'pimienta', 'comino',
+                        'aceite', 'sal', 'azucar', 'vinagre',
+                        'achiote', 'achote',                           # achiote typo
+                        'canela',
+                        'laurel', 'laure',                             # laurel typo
+                        'tomillo', 'clavo', 'pimienta', 'comino',
+                        'pimiento en polvo',                           # paprika-like: processed, not fresh pimiento
                         # otros
                         'arroz', 'consome', 'concentrado', 'levadura', 'agua pura', 'bebida',
-                        # chiles procesados / secos (qualified)
+                        # chiles procesados / secos
                         'chile seco', 'chile rojo', 'chile en polvo', 'chile molido',
-                        # frijol procesado / seco (qualified)
-                        'frijol negro', 'frijol rojo', 'frijol blanco', 'frijol en grano',
-                        'frijol seco',
+                        # frijol procesado / seco
+                        'frijol negro', 'frijol rojo', 'frijol colorado',  # colorado = rojo variant
+                        'frijol blanco', 'frijol en grano', 'frijol seco',
                     ]
                     
                     # Find the Total column and Description column indices
