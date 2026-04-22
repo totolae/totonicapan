@@ -70,60 +70,22 @@ def get_master_cell(ws, r_idx, c_idx):
 
 def fuzzy_match_category(description, cultivados, abarrotes, threshold=80):
     """
-    Uses fuzzy matching to categorize a product description.
-    Returns: ('agricultura', best_match_word) or ('abarrotes', best_match_word) or ('unmatched', None)
+    Matches a description against cultivados/abarrotes keyword lists using
+    accent-insensitive, word-boundary substring matching on the normalized text.
     """
     if not description:
         return ('unmatched', None)
-    
-    # Normalize and extract words from description
-    desc_normalized = normalize_text(description)
-    words = desc_normalized.split()
-    
-    # Try exact matches first (original logic)
-    for word in words:
-        if word in cultivados:
-            return ('agricultura', word)
-        if word in abarrotes:
-            return ('abarrotes', word)
-    
-    # If no exact match, try fuzzy matching
-    best_agri_match = None
-    best_agri_score = 0
-    
-    for word in words:
-        # Skip very short words (less than 3 chars) for fuzzy matching
-        if len(word) < 3:
-            continue
-            
-        # Check against cultivados
-        match_result = process.extractOne(word, cultivados, scorer=fuzz.ratio)
-        if match_result and match_result[1] >= threshold:
-            if match_result[1] > best_agri_score:
-                best_agri_score = match_result[1]
-                best_agri_match = match_result[0]
-    
-    best_abar_match = None
-    best_abar_score = 0
-    
-    for word in words:
-        if len(word) < 3:
-            continue
-            
-        # Check against abarrotes
-        match_result = process.extractOne(word, abarrotes, scorer=fuzz.ratio)
-        if match_result and match_result[1] >= threshold:
-            if match_result[1] > best_abar_score:
-                best_abar_score = match_result[1]
-                best_abar_match = match_result[0]
-    
-    # Return the category with the best match
-    if best_agri_score > best_abar_score and best_agri_match:
-        return ('agricultura', best_agri_match)
-    elif best_abar_match:
-        return ('abarrotes', best_abar_match)
-    else:
-        return ('unmatched', None)
+
+    desc_norm = normalize_text(description)
+
+    for kw in cultivados:
+        if re.search(r'\b' + re.escape(kw) + r'\b', desc_norm):
+            return ('agricultura', kw)
+    for kw in abarrotes:
+        if re.search(r'\b' + re.escape(kw) + r'\b', desc_norm):
+            return ('abarrotes', kw)
+
+    return ('unmatched', None)
 
 # --- TRUCO CSS PARA TRADUCIR LA INTERFAZ A ESPAÑOL ---
 st.markdown("""
@@ -255,24 +217,56 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
 
                 if m_id:
                     abar_sum, agri_sum = 0, 0
-                    cultivados = ['banano', 'banano cavendish', 'banano seda', 'platano', 'piña', 'papaya', 'sandia', 'melon', 
-                                  'naranja', 'limon', 'limon persa', 'manzana', 'aguacate', 'rosa de jamaica', 'tamarindo', 'tomate', 
-                                  'cebolla', 'chile pimiento', 'chile pasa', 'chile guaque', 'zanahoria', 'ejote', 'ejote frances', 
-                                  'guisquil', 'guicoy', 'remolacha', 'repollo', 'brocoli', 'coliflor', 'papa', 'camote', 'espinaca', 
-                                  'miltomate', 'bledo', 'rabano', 'lechuga', 'pepino', 'malanga', 'yuca', 'perejil', 'ajo', 'apio', 
-                                  'cilantro', 'chipilin', 'hierba buena', 'mashan', 'apazote', 'zacate de limon']
-
-                    abarrotes = ['ajonjoli', 'pepita', 'pepitoria', 'mani', 'mani molido', 'maiz blanco', 'frijol negro', 'frijol rojo',
-                                 'arroz blanco', 'huevo rosado', 'huevo colorado', 'huevo gallina amarillo', 'huevo gallina blanco',
-                                 'pechuga pollo amarillo', 'pollo amarillo entero', 'pollo amarillo con hueso', 
-                                 'pollo amarillo pierna y cuadril', 'pechuga pollo con hueso', 'pollo blanco', 'carne res molida', 
-                                 'carne res entera', 'carne res para hilacha', 'crema', 'leche', 'leche nido', 'queso fresco', 
-                                 'queso duro', 'queso seco', 'queso rallado', 'queso de tusa', 'chocolate imperial', 'pan frances', 
-                                 'pan frances salvadoreño', 'pan pirujo', 'miga pan', 'tostadas', 'tortillas de maiz', 'pasta espagueti', 
-                                 'pasta codito', 'pasta corbata', 'avena', 'cebada', 'corazon de trigo', 'chaomein ina', 'maseca', 
-                                 'incaparina', 'protemas', 'atol de haba', 'atol de pinol', 'harina pinol', 'harina haba', 'harina', 
-                                 'aceite patrona', 'sal', 'azucar', 'vinagre', 'achiote', 'canela', 'laurel', 'tomillo', 'clavo', 
-                                 'pimienta', 'pimienta gorda', 'comino', 'hoja de tusa', 'agua pura']
+                    
+                    cultivados = [
+                        # frutas
+                        'banano', 'platano', 'pina', 'papaya', 'sandia', 'melon', 'mango',
+                        'naranja', 'limon', 'manzana', 'aguacate', 'jamaica', 'tamarindo',
+                        'guayaba', 'fresa', 'mora',
+                        # verduras / hortalizas
+                        'tomate', 'miltomate', 'cebolla', 'zanahoria', 'ejote',
+                        'guisquil', 'guicoy', 'ayote', 'calabaza', 'remolacha', 'repollo',
+                        'brocoli', 'coliflor', 'papa', 'camote', 'yuca', 'malanga',
+                        'espinaca', 'bledo', 'rabano', 'lechuga', 'pepino',
+                        # hierbas / aromaticas
+                        'perejil', 'ajo', 'apio', 'cilantro', 'chipilin', 'hierba',
+                        'mashan', 'apazote', 'zacate', 'tusa',
+                        # granos frescos
+                        'maiz', 'cebada', 'trigo', 'arveja', 'haba',
+                        # chiles cultivados (qualified only — bare "chile" stays unmatched)
+                        'chile pimiento', 'chile pasa', 'chile guaque', 'chile cobanero',
+                        'chile verde', 'chile jalapeno', 'chile chiltepe', 'chile dulce',
+                        'chile morron', 'chile chocolate',
+                        # frijol cultivado (fresh / in pod)
+                        'frijol ejotero', 'frijol tierno',
+                    ]
+                    
+                    abarrotes = [
+                        # semillas secas / procesadas
+                        'ajonjoli', 'pepita', 'pepitoria', 'mani',
+                        # proteina animal
+                        'huevo', 'pollo', 'pechuga', 'pierna', 'muslo', 'res', 'carne',
+                        'pescado', 'embutido', 'chorizo', 'salchicha', 'jamon',
+                        # lacteos
+                        'crema', 'leche', 'queso', 'yogur', 'mantequilla', 'margarina',
+                        # panaderia
+                        'pan', 'tostada', 'tortilla', 'galleta', 'chocolate',
+                        # pasta / cereales procesados
+                        'pasta', 'espagueti', 'fideo', 'macarron', 'avena', 'corazon de trigo',
+                        'chaomein', 'chow mein', 'chao mein',
+                        # harinas / mezclas
+                        'maseca', 'incaparina', 'protemas', 'atol', 'harina', 'pinol',
+                        # aceites / condimentos
+                        'aceite', 'sal', 'azucar', 'vinagre', 'achiote', 'canela',
+                        'laurel', 'tomillo', 'clavo', 'pimienta', 'comino',
+                        # otros
+                        'arroz', 'consome', 'concentrado', 'levadura', 'agua pura', 'bebida',
+                        # chiles procesados / secos (qualified)
+                        'chile seco', 'chile rojo', 'chile en polvo', 'chile molido',
+                        # frijol procesado / seco (qualified)
+                        'frijol negro', 'frijol rojo', 'frijol blanco', 'frijol en grano',
+                        'frijol seco',
+                    ]
                     
                     # Find the Total column and Description column indices
                     total_col_idx = -1
