@@ -255,14 +255,24 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
 
                 if m_id:
                     abar_sum, agri_sum = 0, 0
-                    cultivados = ['tomate', 'pina', 'piña', 'banano', 'zanahoria', 'guisquil', 'güisquil', 'cebolla', 'aguacate', 
-                                  'miltomate', 'brocoli', 'brócoli', 'melon', 'melón', 'ejote', 'maiz', 'maíz', 'jamaica', 
-                                  'cebada', 'papaya', 'manzana', 'chile', 'apio', 'ajo', 'cilantro', 'tusa', 'sandia', 'sandía',
-                                  'platano', 'plátano', 'naranja', 'limon', 'limón', 'lechuga', 'repollo', 'remolacha', 
-                                  'rabano', 'rábano', 'pimiento', 'berenjena', 'calabaza', 'pepino']
-                    abarrotes = ['pollo', 'tostada', 'huevo', 'pan', 'queso', 'carne', 'res', 'chowmein', 'chow mein', 
-                                 'chaomein', 'chaumein', 'cahomein', 'crema', 'leche', 'mantequilla', 'aceite', 'arroz',
-                                 'frijol', 'azucar', 'azúcar', 'sal', 'harina', 'pasta', 'fideos', 'atol', 'incaparina']
+                    cultivados = ['banano', 'banano cavendish', 'banano seda', 'platano', 'piña', 'papaya', 'sandia', 'melon', 
+                                  'naranja', 'limon', 'limon persa', 'manzana', 'aguacate', 'rosa de jamaica', 'tamarindo', 'tomate', 
+                                  'cebolla', 'chile pimiento', 'chile pasa', 'chile guaque', 'zanahoria', 'ejote', 'ejote frances', 
+                                  'guisquil', 'guicoy', 'remolacha', 'repollo', 'brocoli', 'coliflor', 'papa', 'camote', 'espinaca', 
+                                  'miltomate', 'bledo', 'rabano', 'lechuga', 'pepino', 'malanga', 'yuca', 'perejil', 'ajo', 'apio', 
+                                  'cilantro', 'chipilin', 'hierba buena', 'mashan', 'apazote', 'zacate de limon']
+
+                    abarrotes = ['ajonjoli', 'pepita', 'pepitoria', 'mani', 'mani molido', 'maiz blanco', 'frijol negro', 'frijol rojo',
+                                 'arroz blanco', 'huevo rosado', 'huevo colorado', 'huevo gallina amarillo', 'huevo gallina blanco',
+                                 'pechuga pollo amarillo', 'pollo amarillo entero', 'pollo amarillo con hueso', 
+                                 'pollo amarillo pierna y cuadril', 'pechuga pollo con hueso', 'pollo blanco', 'carne res molida', 
+                                 'carne res entera', 'carne res para hilacha', 'crema', 'leche', 'leche nido', 'queso fresco', 
+                                 'queso duro', 'queso seco', 'queso rallado', 'queso de tusa', 'chocolate imperial', 'pan frances', 
+                                 'pan frances salvadoreño', 'pan pirujo', 'miga pan', 'tostadas', 'tortillas de maiz', 'pasta espagueti', 
+                                 'pasta codito', 'pasta corbata', 'avena', 'cebada', 'corazon de trigo', 'chaomein ina', 'maseca', 
+                                 'incaparina', 'protemas', 'atol de haba', 'atol de pinol', 'harina pinol', 'harina haba', 'harina', 
+                                 'aceite patrona', 'sal', 'azucar', 'vinagre', 'achiote', 'canela', 'laurel', 'tomillo', 'clavo', 
+                                 'pimienta', 'pimienta gorda', 'comino', 'hoja de tusa', 'agua pura']
                     
                     # Find the Total column and Description column indices
                     total_col_idx = -1
