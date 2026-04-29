@@ -153,18 +153,50 @@ st.markdown("""
 
 # --- WEB UI ---
 st.title("🇬🇹 MAGA: Procesador de Facturas por la LAE: Totonicapán")
-uploaded_pdfs = st.file_uploader(label='1. Seleccione sus Facturas (PDFs)', type='pdf', accept_multiple_files=True)
-uploaded_xlsx = st.file_uploader(label='2. Seleccione su Archivo de Excel', type='xlsx')
 
-if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
+# Municipality selector - user must specify which municipality the receipts belong to
+MUNICIPIOS_OPCIONES = {
+    "Totonicapán": 1,
+    "San Cristóbal Totonicapán": 2,
+    "San Francisco El Alto": 3,
+    "San Andrés Xecul": 4,
+    "Momostenango": 5,
+    "Santa María Chiquimula": 6,
+    "Santa Lucía La Reforma": 7,
+    "San Bartolo Aguas Calientes": 8
+}
+
+selected_municipio = st.selectbox(
+    label='1. Seleccione el Municipio de las facturas',
+    options=["-- Seleccionar municipio --"] + list(MUNICIPIOS_OPCIONES.keys()),
+    help="Todas las facturas que suba deben corresponder a este municipio"
+)
+
+uploaded_pdfs = st.file_uploader(label='2. Seleccione sus Facturas (PDFs)', type='pdf', accept_multiple_files=True)
+uploaded_xlsx = st.file_uploader(label='3. Seleccione su Archivo de Excel', type='xlsx')
+
+# Show warning if municipality not selected
+municipio_valido = selected_municipio != "-- Seleccionar municipio --"
+
+# Show informational message about municipality selection
+if municipio_valido:
+    st.info(f"📍 Municipio seleccionado: **{selected_municipio}**. Asegúrese de que todas las facturas correspondan a este municipio.")
+else:
+    st.warning("⚠️ Por favor seleccione un municipio antes de iniciar el proceso.")
+
+if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipio_valido:
     try:
+        # Get municipality info from user selection
+        user_m_id = MUNICIPIOS_OPCIONES[selected_municipio]
+        user_m_name = selected_municipio
+        
         input_buffer = io.BytesIO(uploaded_xlsx.read())
         wb = openpyxl.load_workbook(input_buffer)
         ws = wb.active 
         
         if "Extra Detalles" not in wb.sheetnames:
             ws_det = wb.create_sheet("Extra Detalles")
-            ws_det.append(['Nombre Emisor', 'NIT Emisor', 'NIT Receptor', 'Num. DTE', 'Municipio', 'Alerta % Abarrotes'])
+            ws_det.append(['Archivo PDF', 'Nombre Emisor', 'NIT Emisor', 'NIT Receptor', 'Num. DTE', 'Municipio', 'Alerta % Abarrotes'])
         else:
             ws_det = wb["Extra Detalles"]
         
@@ -282,16 +314,9 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                 dte_m = re.search(r'N[úu]mero\s*de\s*DTE:\s*(\d+)', text, re.IGNORECASE)
                 dte_val = dte_m.group(1) if dte_m else pdf_file.name
 
-                text_squished = squish_text(text)
-                m_id, m_name = None, "N/A"
-                
-                # Check against our aggressively squished master list
-                for alias, mun_id, official_name in search_list:
-                    alias_squished = squish_text(alias)
-                    if alias_squished in text_squished:
-                        m_id = mun_id
-                        m_name = official_name
-                        break
+                # Use the municipality selected by the user (not detected from receipt)
+                m_id = user_m_id
+                m_name = user_m_name
 
                 if m_id:
                     abar_sum, agri_sum = 0, 0
@@ -515,10 +540,8 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                     perc_abar = (abar_sum / total_rec) if total_rec > 0 else 0
                     alert_status = "⚠️ ALERTA: >30%" if perc_abar > 0.30 else "OK"
 
-                    ws_det.append([name_e, nit_e, nit_r, dte_val, m_name, alert_status])
+                    ws_det.append([pdf_file.name, name_e, nit_e, nit_r, dte_val, m_name, alert_status])
                     new_count += 1
-                else:
-                    st.warning(f"No se pudo identificar el municipio en la factura: {pdf_file.name}")
 
             progress_bar.progress((i + 1) / len(uploaded_pdfs))
 
@@ -586,6 +609,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
             for pdf_name in skipped_non_standard:
                 warning_msg += f"- {pdf_name}\n"
             st.warning(warning_msg)
+        
         output.seek(0)
         st.download_button("Descargar Reporte Final", data=output.getvalue(), 
                            file_name="Reporte_MAGA_Actualizado.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
