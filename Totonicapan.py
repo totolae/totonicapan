@@ -392,13 +392,17 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                         if any(keyword in row_text_normalized for keyword in skip_keywords):
                             continue
                         
-                        # FILTER 2: First cell should be a number (item number like 1, 2, 3...)
-                        if row_tbl and row_tbl[0]:
-                            first_cell = str(row_tbl[0]).strip()
-                            # Check if first cell is a number (item rows start with 1, 2, 3, etc.)
-                            if not first_cell.isdigit():
-                                continue
-                        else:
+                        # FILTER 2: Check if this looks like a data row
+                        # Look for a digit in the first few cells (item numbers like 1, 2, 3...)
+                        is_data_row = False
+                        for cell in row_tbl[:5]:  # Check first 5 cells (more lenient)
+                            if cell:
+                                cell_str = str(cell).strip()
+                                if cell_str.isdigit():
+                                    is_data_row = True
+                                    break
+                        
+                        if not is_data_row:
                             continue
                         
                         # Extract the value
