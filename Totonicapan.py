@@ -68,6 +68,49 @@ def get_master_cell(ws, r_idx, c_idx):
                 return ws.cell(row=m_range.min_row, column=m_range.min_col)
     return cell
 
+def find_description_in_row(row):
+    """
+    Intelligently finds the product description in a table row.
+    Returns the cell that looks most like a product description (longest text that's not a number/keyword).
+    """
+    candidates = []
+    for cell in row:
+        if not cell:
+            continue
+        cell_str = str(cell).strip()
+        
+        # Skip if empty
+        if not cell_str:
+            continue
+            
+        # Skip if it's a pure number
+        try:
+            float(cell_str.replace(',', '.'))
+            continue
+        except ValueError:
+            pass
+        
+        # Skip common non-description keywords
+        cell_lower = cell_str.lower()
+        if cell_lower in ['bien', 'servicio', 'iva', 'isr']:
+            continue
+        
+        # Skip if it's very short (likely not a description)
+        if len(cell_str) < 4:
+            continue
+        
+        # Skip if it starts with "IVA" or "ISR" (tax column)
+        if cell_str.startswith(('IVA', 'ISR')):
+            continue
+            
+        # This looks like a potential description
+        candidates.append(cell_str)
+    
+    # Return the longest candidate (descriptions are usually the longest text)
+    if candidates:
+        return max(candidates, key=len)
+    return ""
+
 def fuzzy_match_category(description, cultivados, abarrotes, threshold=80):
     """
     Accent-insensitive, word-boundary matching with Spanish plural tolerance.
@@ -359,36 +402,18 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                         if val <= 0:
                             continue
                         
-                        # Extract ONLY the description from the correct column
-                        description = ""
-                        if desc_col_idx < len(row_tbl) and row_tbl[desc_col_idx]:
-                            description = str(row_tbl[desc_col_idx]).strip()
-                        else:
-                            # Fallback: try index 3
-                            if len(row_tbl) > 3 and row_tbl[3]:
+                        # Use intelligent description finder
+                        description = find_description_in_row(row_tbl)
+                        
+                        # Fallback: if no description found, try column index method
+                        if not description:
+                            if desc_col_idx < len(row_tbl) and row_tbl[desc_col_idx]:
+                                description = str(row_tbl[desc_col_idx]).strip()
+                            elif len(row_tbl) > 3 and row_tbl[3]:
                                 description = str(row_tbl[3]).strip()
                             else:
-                                description = row_text
-                        
-                        # VALIDATION: If description looks like a number, find the longest text field
-                        # This handles cases where pdfplumber extracted columns incorrectly
-                        try:
-                            float(description.replace(',', '.'))
-                            # It's a number! Find the longest text field instead
-                            longest_text = ""
-                            for cell in row_tbl:
-                                if cell and len(str(cell)) > len(longest_text):
-                                    try:
-                                        # Skip if this cell is also just a number
-                                        float(str(cell).replace(',', '.'))
-                                    except ValueError:
-                                        # Not a number, could be description
-                                        longest_text = str(cell)
-                            if longest_text:
-                                description = longest_text.strip()
-                        except ValueError:
-                            # Not a number, description is fine
-                            pass
+                                # Last resort: use row text but this shouldn't happen
+                                description = "REVISAR: " + row_text[:50]
                         
                         # Use fuzzy matching to categorize (using full row text for matching)
                         category, matched_word = fuzzy_match_category(row_text, cultivados, abarrotes, threshold=80)
