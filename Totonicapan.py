@@ -71,44 +71,64 @@ def get_master_cell(ws, r_idx, c_idx):
 def find_description_in_row(row):
     """
     Intelligently finds the product description in a table row.
-    Returns the cell that looks most like a product description (longest text that's not a number/keyword).
+    Returns the cell that looks most like a product description (longest text-heavy field).
     """
     candidates = []
-    for cell in row:
-        if not cell:
+    
+    for i, cell in enumerate(row):
+        if cell is None:
             continue
-        cell_str = str(cell).strip()
         
-        # Skip if empty
-        if not cell_str:
+        cell_str = str(cell).strip()
+        if not cell_str or len(cell_str) == 0:
             continue
-            
-        # Skip if it's a pure number
+        
+        # Skip if it's ONLY a pure number (no letters at all)
+        is_pure_number = False
         try:
-            float(cell_str.replace(',', '.'))
-            continue
+            # Remove common separators and try to parse as number
+            test_str = cell_str.replace(',', '.').replace(' ', '')
+            float(test_str)
+            # If we got here, it's a number - but check if it has ANY letters
+            if not any(c.isalpha() for c in cell_str):
+                is_pure_number = True
         except ValueError:
+            # Not a number, that's good
             pass
         
-        # Skip common non-description keywords
-        cell_lower = cell_str.lower()
-        if cell_lower in ['bien', 'servicio', 'iva', 'isr']:
+        if is_pure_number:
             continue
         
-        # Skip if it's very short (likely not a description)
-        if len(cell_str) < 4:
+        # Skip single-letter or very short cells (likely not descriptions)
+        if len(cell_str) <= 2:
             continue
         
-        # Skip if it starts with "IVA" or "ISR" (tax column)
-        if cell_str.startswith(('IVA', 'ISR')):
+        # Skip exact keyword matches (case-insensitive, stripped)
+        cell_clean = cell_str.lower().strip()
+        if cell_clean in ['bien', 'servicio', 'b/s']:
             continue
-            
-        # This looks like a potential description
-        candidates.append(cell_str)
+        
+        # Skip if it STARTS with tax keywords
+        if cell_str.upper().startswith('IVA') or cell_str.upper().startswith('ISR'):
+            continue
+        
+        # Calculate letter vs digit ratio
+        letter_count = sum(c.isalpha() for c in cell_str)
+        digit_count = sum(c.isdigit() for c in cell_str)
+        total_chars = len(cell_str)
+        
+        # Prefer cells with more letters (descriptions have words)
+        # Store: (length, letter_ratio, position, text)
+        letter_ratio = letter_count / total_chars if total_chars > 0 else 0
+        
+        candidates.append((len(cell_str), letter_ratio, i, cell_str))
     
-    # Return the longest candidate (descriptions are usually the longest text)
     if candidates:
-        return max(candidates, key=len)
+        # Sort by: 1) letter ratio (descending), 2) length (descending), 3) position (ascending)
+        # This prioritizes text-heavy cells, then longer cells, then earlier cells
+        candidates.sort(key=lambda x: (-x[1], -x[0], x[2]))
+        return candidates[0][3]
+    
     return ""
 
 def fuzzy_match_category(description, cultivados, abarrotes, threshold=80):
@@ -407,12 +427,27 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                         
                         # Fallback: if no description found, try column index method
                         if not description:
-                            if desc_col_idx < len(row_tbl) and row_tbl[desc_col_idx]:
+                            # Try the detected description column
+                            if desc_col_idx != -1 and desc_col_idx < len(row_tbl) and row_tbl[desc_col_idx]:
                                 description = str(row_tbl[desc_col_idx]).strip()
+                            # Try index 3 (common position)
                             elif len(row_tbl) > 3 and row_tbl[3]:
                                 description = str(row_tbl[3]).strip()
+                            # Try to find ANY non-empty, non-numeric cell
                             else:
-                                # Last resort: use row text but this shouldn't happen
+                                for cell in row_tbl:
+                                    if cell:
+                                        cell_str = str(cell).strip()
+                                        try:
+                                            float(cell_str.replace(',', '.'))
+                                        except ValueError:
+                                            # Not a pure number, use it
+                                            if len(cell_str) > 2:
+                                                description = cell_str
+                                                break
+                            
+                            # Last resort
+                            if not description:
                                 description = "REVISAR: " + row_text[:50]
                         
                         # Use fuzzy matching to categorize (using full row text for matching)
