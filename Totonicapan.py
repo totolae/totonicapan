@@ -230,7 +230,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                         'platano', 'pina', 'papaya', 'sandia', 'melon', 'mango',
                         'naranja', 'limon', 'limom', 'limo',          # limon typos
                         'manzana', 'aguacate', 'jamaica', 'tamarindo',
-                        'guayaba', 'fresa', 'mora',
+                        'guayaba', 'fresa', 'mora', 'arandano', 'orandano',
                         # verduras / hortalizas
                         'tomate', 'miltomate', 'cebolla', 'zanahoria', 'ejote',
                         'guisquil', 'gusiquil', 'guisqul',            # guisquil typos
@@ -238,36 +238,38 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                         'brocoli', 'brocoly',                          # brocoli typo
                         'coliflor', 'papa', 'camote', 'yuca', 'malanga',
                         'espinaca', 'bledo', 'rabano', 'lechuga', 'pepino',
+                        'chipolin', 'chipilin',
                         # hierbas / aromaticas
-                        'perejil', 'ajo', 'apio', 'cilantro', 'chipilin',
+                        'perejil', 'ajo', 'apio', 'cilantro', 'chipilin', 'oregano', 'romero',
                         'hierba', 'hierba buena', 'hierbabuena', 'hirbabuena',
                         'mashan', 'apazote', 'apasote',                # apazote misspelling
-                        'zacate', 'tusa',
+                        'zacate', 'tusa', 'laurel', 'tomio', 'tomillo', 
                         # granos frescos
                         'maiz', 'cebada', 'cabada',                    # cebada typo
-                        'trigo', 'arveja', 'haba',
+                        'trigo', 'arveja', 'haba', 'azote',
                         # chiles cultivados (qualified only — bare "chile" stays unmatched)
                         'chile pimiento', 'chile pimento',             # pimento typo
                         'chile pasa', 'chila pasa',                    # chila typo
                         'chile guaque', 'chile guaca',                 # guaca typo (very common)
                         'chile cobanero', 'chile verde', 'chile jalapeno', 'chile chiltepe',
-                        'chile dulce', 'chile morron', 'chile chocolate',
+                        'chile dulce', 'chile morron', 'chile chocolate', 'chile negro', 'achiote',
                         # frijol cultivado
-                        'frijol ejotero', 'frijol tierno',
+                        'frijol ejotero', 'frijol tierno', 'frijol negro', 'frijol vaina real',
+                        
                     ]
                     
                     abarrotes = [
                         # semillas secas / procesadas
                         'ajonjoli', 'ajonjolin',                       # ajonjoli variant spelling
-                        'pepita', 'pepitoria',
-                        'mani', 'mania',                               # mani typo
+                        'pepita', 'pepitoria', 'pepitorio', 'frijol sellado',
+                        'mani', 'mania',                              # mani typo
                         # proteina animal
                         'huevo', 'pollo', 'pechuga', 'pierna', 'muslo', 'res', 'carne',
                         'pescado', 'embutido', 'chorizo', 'salchicha', 'jamon',
                         # lacteos
                         'crema', 'leche', 'queso', 'yogur', 'mantequilla', 'margarina',
                         # panaderia
-                        'pan', 'pirujo',                               # "pirujo" sometimes appears without "pan"
+                        'pan', 'pirujo', 'cevada',                              # "pirujo" sometimes appears without "pan"
                         'tostada', 'tortilla', 'galleta', 'chocolate',
                         # pasta / cereales procesados
                         'pasta', 'espagueti', 'fideo', 'macarron',
@@ -292,6 +294,10 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                         # frijol procesado / seco
                         'frijol negro', 'frijol rojo', 'frijol colorado',  # colorado = rojo variant
                         'frijol blanco', 'frijol en grano', 'frijol seco',
+                        #etc.
+                        'crayones', 'crayones de madera', 'sacapuntas', 'borradores',
+                        'frascos de goma', 'lapiz', 'lapicero', 'lapiceros', 'lapices',
+                        'cuadernos', 'espaqueti'
                     ]
                     
                     # Find the Total column and Description column indices
