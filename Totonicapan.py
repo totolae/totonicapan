@@ -405,6 +405,12 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                         if not is_data_row:
                             continue
                         
+                        # FILTER 3: Skip "artifact rows" caused by white lines splitting a row
+                        # These rows have very few non-empty cells (usually just the item number)
+                        non_empty_cells = sum(1 for c in row_tbl if c and str(c).strip())
+                        if non_empty_cells < 3:
+                            continue
+                        
                         # Extract the value
                         val = extract_value_from_row(row_tbl, total_col_idx)
                         
