@@ -245,6 +245,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
 
         batch_totals = {m_id: {'abar': 0.0, 'agri': 0.0, 'emisores': set(), 'receptores': set()} for m_id in MUNICIPIOS.keys()}
         new_count = 0
+        skipped_non_standard = []  # Track non-standard receipts
         progress_bar = st.progress(0)
 
         # 4. Process each PDF
@@ -255,6 +256,28 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                 for p in pdf.pages:
                     t = p.extract_table()
                     if t: tables.extend(t)
+
+                # VALIDATION: Check if this is a standard SAT factura
+                # Standard facturas have specific markers that proformas/cotizaciones don't
+                is_standard_factura = False
+                
+                # Check 1: Must have "Número de DTE" (unique to SAT facturas)
+                has_dte = bool(re.search(r'N[úu]mero\s*de\s*DTE', text, re.IGNORECASE))
+                
+                # Check 2: Must have "NÚMERO DE AUTORIZACIÓN" (SAT authorization)
+                has_autorizacion = bool(re.search(r'N[úu]mero\s*de\s*Autorizaci[óo]n', text, re.IGNORECASE))
+                
+                # Check 3: Must have "Nit Emisor" in standard format
+                has_nit_emisor = bool(re.search(r'Nit\s*Emisor', text, re.IGNORECASE))
+                
+                # Must have at least 2 of the 3 markers to be considered a valid factura
+                marker_count = sum([has_dte, has_autorizacion, has_nit_emisor])
+                is_standard_factura = marker_count >= 2
+                
+                if not is_standard_factura:
+                    skipped_non_standard.append(pdf_file.name)
+                    progress_bar.progress((i + 1) / len(uploaded_pdfs))
+                    continue
 
                 dte_m = re.search(r'N[úu]mero\s*de\s*DTE:\s*(\d+)', text, re.IGNORECASE)
                 dte_val = dte_m.group(1) if dte_m else pdf_file.name
@@ -556,6 +579,13 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                             Los totales de esos productos no fueron agregados a la cantidad de la primera hoja"""
         
         st.success(success_msg)
+        
+        # Show warning for non-standard receipts that were skipped
+        if skipped_non_standard:
+            warning_msg = f"⚠️ **{len(skipped_non_standard)} factura(s) no estándar fueron ignoradas** (proformas, cotizaciones, u otros formatos no oficiales). Estas deben procesarse manualmente:\n\n"
+            for pdf_name in skipped_non_standard:
+                warning_msg += f"- {pdf_name}\n"
+            st.warning(warning_msg)
         output.seek(0)
         st.download_button("Descargar Reporte Final", data=output.getvalue(), 
                            file_name="Reporte_MAGA_Actualizado.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
