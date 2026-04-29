@@ -243,7 +243,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                         'perejil', 'ajo', 'apio', 'cilantro', 'chipilin', 'oregano', 'romero',
                         'hierba', 'hierba buena', 'hierbabuena', 'hirbabuena',
                         'mashan', 'apazote', 'apasote',                # apazote misspelling
-                        'zacate', 'tusa', 'laurel', 'tomio', 'tomillo', 
+                        'zacate', 'tusa', 'laurel', 'tomio', 'tomillo', 'albahaca',
                         # granos frescos
                         'maiz', 'cebada', 'cabada',                    # cebada typo
                         'trigo', 'arveja', 'haba', 'azote',
@@ -301,25 +301,28 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                     ]
                     
                     # Find the Total column and Description column indices
+                    # ONLY search in the first table's header rows (first 5 rows max)
                     total_col_idx = -1
                     desc_col_idx = -1
                     
-                    for row_tbl in tables:
-                        if not row_tbl: continue
-                        for idx, cell in enumerate(row_tbl):
-                            if not cell: continue
-                            cell_norm = normalize_text(str(cell))
+                    if tables:
+                        header_rows = tables[:min(5, len(tables))]
+                        for row_tbl in header_rows:
+                            if not row_tbl: continue
+                            for idx, cell in enumerate(row_tbl):
+                                if not cell: continue
+                                cell_norm = normalize_text(str(cell))
+                                
+                                # Find Total column (has "Total" and "(Q)")
+                                if 'total' in cell_norm and 'descuento' not in cell_norm and '(q)' in cell_norm:
+                                    total_col_idx = idx
+                                
+                                # Find Description column
+                                if 'descripcion' in cell_norm:
+                                    desc_col_idx = idx
                             
-                            # Find Total column (has "Total" and "(Q)")
-                            if 'total' in cell_norm and 'descuento' not in cell_norm and '(q)' in cell_norm:
-                                total_col_idx = idx
-                            
-                            # Find Description column
-                            if 'descripcion' in cell_norm:
-                                desc_col_idx = idx
-                        
-                        if total_col_idx != -1 and desc_col_idx != -1:
-                            break
+                            if total_col_idx != -1 and desc_col_idx != -1:
+                                break
                     
                     # If we didn't find the description column, assume it's index 3
                     if desc_col_idx == -1:
@@ -366,6 +369,26 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                                 description = str(row_tbl[3]).strip()
                             else:
                                 description = row_text
+                        
+                        # VALIDATION: If description looks like a number, find the longest text field
+                        # This handles cases where pdfplumber extracted columns incorrectly
+                        try:
+                            float(description.replace(',', '.'))
+                            # It's a number! Find the longest text field instead
+                            longest_text = ""
+                            for cell in row_tbl:
+                                if cell and len(str(cell)) > len(longest_text):
+                                    try:
+                                        # Skip if this cell is also just a number
+                                        float(str(cell).replace(',', '.'))
+                                    except ValueError:
+                                        # Not a number, could be description
+                                        longest_text = str(cell)
+                            if longest_text:
+                                description = longest_text.strip()
+                        except ValueError:
+                            # Not a number, description is fine
+                            pass
                         
                         # Use fuzzy matching to categorize (using full row text for matching)
                         category, matched_word = fuzzy_match_category(row_text, cultivados, abarrotes, threshold=80)
