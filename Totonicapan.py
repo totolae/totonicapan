@@ -117,6 +117,107 @@ def find_description_in_row(row):
     
     return best_candidate
 
+def merge_split_rows(tables):
+    """
+    Merges rows that were split due to white lines in PDF tables.
+    
+    Detects continuation rows (rows with only description text but no item number/value)
+    and merges them back into the previous data row's description.
+    
+    Example:
+        Row N:   ['23', None, 'Bien', '32', 'UNIDADES DE', '5.50', ..., '176.00']
+        Row N+1: [None, '', '', '', 'AGUACATE', '', '', '', '', '']  ← continuation
+        
+        After merge:
+        Row N:   ['23', None, 'Bien', '32', 'UNIDADES DE AGUACATE', '5.50', ..., '176.00']
+        Row N+1: removed
+    """
+    if not tables:
+        return tables
+    
+    merged = []
+    i = 0
+    while i < len(tables):
+        current_row = list(tables[i]) if tables[i] else []
+        
+        # Look ahead to merge any continuation rows
+        j = i + 1
+        while j < len(tables):
+            next_row = tables[j]
+            if not next_row:
+                break
+            
+            # Check if next_row is a continuation row:
+            # 1. No item number (no digit) in first 5 cells
+            # 2. No numeric values anywhere
+            # 3. Has at least some text content
+            has_item_number = False
+            for cell in next_row[:5]:
+                if cell:
+                    cell_str = str(cell).strip()
+                    if cell_str.isdigit():
+                        has_item_number = True
+                        break
+            
+            has_numeric_value = False
+            text_fragments = []
+            for cell in next_row:
+                if cell is None:
+                    continue
+                cell_str = str(cell).strip()
+                if not cell_str:
+                    continue
+                # Check if it's a number
+                try:
+                    val = float(cell_str.replace(',', '.').replace(' ', ''))
+                    if val > 0:
+                        has_numeric_value = True
+                        break
+                except ValueError:
+                    # Not a number - could be description text
+                    cell_upper = cell_str.upper()
+                    if len(cell_str) >= 3 and cell_upper not in ['BIEN', 'SERVICIO', 'B/S']:
+                        if not cell_upper.startswith('IVA') and not cell_upper.startswith('ISR'):
+                            text_fragments.append(cell_str)
+            
+            # If it's a continuation row, merge text into current row's description
+            if not has_item_number and not has_numeric_value and text_fragments:
+                continuation_text = " ".join(text_fragments)
+                
+                # Find description cell in current row and append the continuation
+                for k, cell in enumerate(current_row):
+                    if cell is None:
+                        continue
+                    cell_str = str(cell).strip()
+                    if not cell_str:
+                        continue
+                    # Skip non-description cells
+                    cell_upper = cell_str.upper()
+                    if cell_upper in ['BIEN', 'SERVICIO', 'B/S']:
+                        continue
+                    if cell_upper.startswith('IVA') or cell_upper.startswith('ISR'):
+                        continue
+                    # Skip pure numbers
+                    try:
+                        float(cell_str.replace(',', '.').replace(' ', ''))
+                        continue
+                    except ValueError:
+                        pass
+                    # This is the description cell - append continuation
+                    if len(cell_str) >= 3:
+                        current_row[k] = cell_str + " " + continuation_text
+                        break
+                
+                j += 1  # Move to next row, continue checking for more continuations
+            else:
+                # Not a continuation, stop merging
+                break
+        
+        merged.append(current_row)
+        i = j  # Skip past any merged continuation rows
+    
+    return merged
+
 def fuzzy_match_category(description, cultivados, abarrotes, threshold=80):
     """
     Accent-insensitive, word-boundary matching with Spanish plural tolerance.
@@ -288,6 +389,9 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                 for p in pdf.pages:
                     t = p.extract_table()
                     if t: tables.extend(t)
+                
+                # Merge rows that were split by white lines in the PDF
+                tables = merge_split_rows(tables)
 
                 # VALIDATION: Check if this is a standard SAT factura
                 # Standard facturas have specific markers that proformas/cotizaciones don't
