@@ -252,7 +252,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx:
                         'chile pasa', 'chila pasa',                    # chila typo
                         'chile guaque', 'chile guaca',                 # guaca typo (very common)
                         'chile cobanero', 'chile verde', 'chile jalapeno', 'chile chiltepe',
-                        'chile dulce', 'chile morron', 'chile chocolate', 'chile negro', 'achiote',
+                        'chile dulce', 'chile morron', 'chile chocolate', 'chile negro', 'achiote', 'chile',
                         # frijol cultivado
                         'frijol ejotero', 'frijol tierno', 'frijol negro', 'frijol vaina real',
                         
