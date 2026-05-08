@@ -334,8 +334,32 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
         if 'abar' not in col_map or 'agri' not in col_map:
             st.error(f"No encontré las columnas base en el Excel.")
             st.stop()
-        
 
+        department_name = 'totonicapan'
+        # 2. MASTER MUNICIPALITY DICTIONARY
+        MUNICIPIOS = {
+            1: {"nombre_oficial": "Totonicapán", "alias_pdf": ["totonicapan totonicapan", "totonicapan, totonicapan", "totonicapan"]},
+            2: {"nombre_oficial": "San Cristóbal Totonicapán", "alias_pdf": ["san cristobal totonicapan", "san cristobal"]},
+            3: {"nombre_oficial": "San Francisco El Alto", "alias_pdf": ["san francisco el alto", "san francisco"]},
+            4: {"nombre_oficial": "San Andrés Xecul", "alias_pdf": ["san andres xecul", "san andres"]},
+            5: {"nombre_oficial": "Momostenango", "alias_pdf": ["momostenango"]},
+            6: {"nombre_oficial": "Santa María Chiquimula", "alias_pdf": ["santa maria chiquimula", "sta maria chiquimula", "santa maria", "sta maria"]},
+            7: {"nombre_oficial": "Santa Lucía La Reforma", "alias_pdf": ["santa lucia la reforma", "sta lucia la reforma", "santa lucia", "sta lucia"]},
+            8: {"nombre_oficial": "San Bartolo Aguas Calientes", "alias_pdf": ["san bartolo aguas calientes", "san bartolo"]}
+        }
+        
+        search_list = []
+        for m_id, data in MUNICIPIOS.items():
+            for alias in data["alias_pdf"]:
+                search_list.append((alias, m_id, data["nombre_oficial"]))
+                
+        # CORE FIX: Sorts the list so Totonicapán (ID 1) is ALWAYS evaluated last.
+        # Within the other municipalities, sorts by length to catch specific names first.
+                search_list.sort(key=lambda x: (
+            squish_text(x[2]) == squish_text(department_name),
+            -len(x[0])
+        ))
+        
         EXCEL_MAPPINGS = {
             1: "totonicapán", 2: "san cristobal", 3: "san francisco", 4: "san andres",
             5: "momostenango", 6: "santa maria", 7: "santa lucia", 8: "san bartolo"
