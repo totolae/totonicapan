@@ -51,9 +51,27 @@ def clean_currency(value):
     except ValueError: return 0.0
 
 def extract_value_from_row(row_list, total_idx):
+    # PRIMARY: SAT facturas have 'IVA' as the Impuestos column label on every item row.
+    # The Total (Q) column always sits immediately to its left. This per-row anchor
+    # survives pdfplumber's column-count drift across pages of the same invoice
+    # (e.g. when page 2 of a multi-page invoice extracts as 10 columns instead of 12,
+    # the header-detected total_idx from page 1 would land on the 'IVA' string).
+    for idx, cell in enumerate(row_list):
+        if cell is None:
+            continue
+        if str(cell).strip().upper() == 'IVA' and idx > 0:
+            val = clean_currency(row_list[idx - 1])
+            if val > 0:
+                return val
+            break  # IVA found but no usable value before it; don't fall through
+                   # to the last-positive heuristic — that would grab the Impuestos value.
+
+    # FALLBACK 1: header-detected total column (correct when IVA marker is absent).
     if total_idx != -1 and len(row_list) > total_idx:
         val = clean_currency(row_list[total_idx])
         if val > 0: return val
+
+    # FALLBACK 2: last positive number (kept for non-SAT formats).
     for item in reversed(row_list):
         val = clean_currency(item)
         if val > 0: return val
