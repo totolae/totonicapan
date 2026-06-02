@@ -420,78 +420,72 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                     
                     cultivados = [
                         # frutas
-                        'banano', 'bananano',                         # triple-n typo
+                        'banano', 'bananano',                          # triple-n typo
                         'platano', 'pina', 'papaya', 'sandia', 'melon', 'mango',
-                        'naranja', 'limon', 'limom', 'limo',          # limon typos
+                        'naranja', 'limon', 'limom', 'limo',           # limon typos
                         'manzana', 'aguacate', 'jamaica', 'tamarindo',
                         'guayaba', 'fresa', 'mora', 'arandano', 'orandano',
                         # verduras / hortalizas
                         'tomate', 'miltomate', 'cebolla', 'zanahoria', 'ejote',
-                        'guisquil', 'gusiquil', 'guisqul',            # guisquil typos
+                        'guisquil', 'gusiquil', 'guisqul',             # guisquil typos
                         'guicoy', 'ayote', 'calabaza', 'remolacha', 'repollo',
                         'brocoli', 'brocoly',                          # brocoli typo
                         'coliflor', 'papa', 'camote', 'yuca', 'malanga',
                         'espinaca', 'bledo', 'rabano', 'lechuga', 'pepino',
                         'chipolin', 'chipilin',
                         # hierbas / aromaticas
-                        'perejil', 'ajo', 'apio', 'cilantro', 'chipilin', 'oregano', 'romero',
+                        'perejil', 'ajo', 'apio', 'cilantro', 'oregano', 'romero',   # removed duplicate 'chipilin'
                         'hierba', 'hierba buena', 'hierbabuena', 'hirbabuena',
                         'mashan', 'apazote', 'apasote',                # apazote misspelling
                         'zacate', 'tusa', 'laurel', 'tomio', 'tomillo', 'albahaca',
                         # granos frescos
-                        'maiz', 'cebada', 'cabada',                    # cebada typo
+                        'maiz', 'cebada', 'cabada'                   # cebada typo
                         'trigo', 'arveja', 'haba', 'azote',
-                        # chiles cultivados (qualified only — bare "chile" stays unmatched)
-                        'chile pimiento', 'chile pimento',             # pimento typo
-                        'chile pasa', 'chila pasa',                    # chila typo
-                        'chile guaque', 'chile guaca',                 # guaca typo (very common)
+                        'ajonjoli', 'ajonjolin',                       # ajonjoli variant spelling
+                        # chiles cultivados (qualified only -- bare "chile" stays unmatched)
+                        'chile pimiento', 'chile pimento', 'chile pimienta',            # pimento typo
                         'chile cobanero', 'chile verde', 'chile jalapeno', 'chile chiltepe',
-                        'chile dulce', 'chile morron', 'chile chocolate', 'chile negro', 'achiote', 'chile',
+                        'chile dulce', 'chile morron',
                         # frijol cultivado
-                        'frijol ejotero', 'frijol tierno', 'frijol negro', 'frijol vaina real',
-                        
+                        'frijol ejotero', 'frijol tierno', 'frijol negro', 'frijol vaina real',  'frijol seco',
+                        'frijol rojo', 'frijol colorado', 'frijol blanco', 'frijol en grano',
+                        #más
+                        'carne de res', 'res', 'pescado', 'huevo', 'pollo', 'pechuga', 'pierna', 'muslo',
+                        'tomillo', 'clavo', 'pimienta', 'comino', 'achiote', 'achote',          # achiote typo
+                        'canela', 'laurel', 'laure', 'pepitoria', 'pepitorio', 'mani', 'mania', 'manilla'
                     ]
                     
                     abarrotes = [
                         # semillas secas / procesadas
-                        'ajonjoli', 'ajonjolin',                       # ajonjoli variant spelling
-                        'pepita', 'pepitoria', 'pepitorio', 'frijol sellado',
-                        'mani', 'mania',                              # mani typo
+                        'pepita', 'frijol sellado',
                         # proteina animal
-                        'huevo', 'pollo', 'pechuga', 'pierna', 'muslo', 'res', 'carne',
-                        'pescado', 'embutido', 'chorizo', 'salchicha', 'jamon',
+                        'carne', 'embutido', 'chorizo', 'salchicha', 'jamon',
                         # lacteos
                         'crema', 'leche', 'queso', 'yogur', 'mantequilla', 'margarina',
                         # panaderia
-                        'pan', 'pirujo', 'cevada',                              # "pirujo" sometimes appears without "pan"
+                        'pan', 'pirujo',                      # "pirujo" sometimes appears without "pan"; cevada = cebada typo
                         'tostada', 'tortilla', 'galleta', 'chocolate',
                         # pasta / cereales procesados
-                        'pasta', 'espagueti', 'fideo', 'macarron',
-                        'codito',                                      # catches "pasta codito" / "pasto codito"
-                        'avena', 'abena',                              # avena typo
+                        'pasta', 'espagueti', 'fideo', 'macarron', 'espaqueti',
+                        'codito',                                       # catches "pasta codito" / "pasto codito"
+                        'avena', 'abena',                               # avena typo
                         'corazon de trigo',
                         'chaomein', 'chow mein', 'chao mein', 'chaumein', 'cahomein',
-                        'mosh',                                        # Guatemalan oatmeal (mosh quaker)
+                        'mosh',                                         
                         # harinas / mezclas
                         'maseca', 'incaparina', 'protemas', 'atol', 'harina', 'pinol',
                         # aceites / condimentos
                         'aceite', 'sal', 'azucar', 'vinagre',
-                        'achiote', 'achote',                           # achiote typo
-                        'canela',
-                        'laurel', 'laure',                             # laurel typo
-                        'tomillo', 'clavo', 'pimienta', 'comino',
-                        'pimiento en polvo',                           # paprika-like: processed, not fresh pimiento
+                        'pimiento en polvo',                           
                         # otros
                         'arroz', 'consome', 'concentrado', 'levadura', 'agua pura', 'bebida',
                         # chiles procesados / secos
                         'chile seco', 'chile rojo', 'chile en polvo', 'chile molido',
                         # frijol procesado / seco
-                        'frijol negro', 'frijol rojo', 'frijol colorado',  # colorado = rojo variant
-                        'frijol blanco', 'frijol en grano', 'frijol seco',
-                        #etc.
-                        'crayones', 'crayones de madera', 'sacapuntas', 'borradores',
-                        'frascos de goma', 'lapiz', 'lapicero', 'lapiceros', 'lapices',
-                        'cuadernos', 'espaqueti'
+                        'chile pasa', 'chila pasa',                    # chila typo
+                        'chile guaque', 'chile guaca',                 # guaca typo (muy comun)
+                        'chile chocolate', 'chile negro' 
+                        
                     ]
                     
                     # Find the Total column and Description column indices
