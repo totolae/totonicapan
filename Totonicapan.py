@@ -434,7 +434,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'espinaca', 'bledo', 'rabano', 'lechuga', 'pepino',
                         'chipolin', 'chipilin',
                         # hierbas / aromaticas
-                        'perejil', 'ajo', 'apio', 'cilantro', 'oregano', 'romero',   # removed duplicate 'chipilin'
+                        'perejil', 'ajo', 'apio', 'cilantro', 'cilandro', 'oregano', 'romero',   # removed duplicate 'chipilin'
                         'hierba', 'hierba buena', 'hierbabuena', 'hirbabuena',
                         'mashan', 'apazote', 'apasote',                # apazote misspelling
                         'zacate', 'tusa', 'laurel', 'tomio', 'tomillo', 'albahaca',
