@@ -23,8 +23,8 @@ def safe_float(val):
     if val is None: return 0.0
     s = str(val).strip()
     if not s or s == '-': return 0.0
-    s = s.replace(',', '') 
-    s = re.sub(r'[^\d\.\-]', '', s) 
+    s = s.replace(',', '')
+    s = re.sub(r'[^\d\.\-]', '', s)
     if s.count('.') > 1:
         parts = s.rsplit('.', 1)
         s = parts[0].replace('.', '') + '.' + parts[1]
@@ -36,17 +36,17 @@ def clean_currency(value):
     raw = str(value).strip().replace(' ', '')
     raw = re.sub(r'[^\d\.,]', '', raw)
     if not raw: return 0.0
-    
+
     if re.search(r',\d{1,2}$', raw):
         parts = raw.rsplit(',', 1)
         raw = parts[0].replace('.', '').replace(',', '') + '.' + parts[1]
     else:
         raw = raw.replace(',', '')
-        
+
     if raw.count('.') > 1:
         parts = raw.rsplit('.', 1)
         raw = parts[0].replace('.', '') + '.' + parts[1]
-        
+
     try: return float(raw)
     except ValueError: return 0.0
 
@@ -92,22 +92,22 @@ def find_description_in_row(row):
     """
     best_candidate = ""
     best_score = 0
-    
+
     for cell in row:
         if cell is None:
             continue
-        
+
         cell_str = str(cell).strip()
         if not cell_str:
             continue
-        
+
         # Skip obvious non-descriptions
         cell_upper = cell_str.upper()
         if cell_upper in ['BIEN', 'SERVICIO', 'B/S']:
             continue
         if cell_upper.startswith('IVA ') or cell_upper.startswith('ISR '):
             continue
-        
+
         # Check if it's a pure number
         try:
             float(cell_str.replace(',', '.').replace(' ', ''))
@@ -116,54 +116,54 @@ def find_description_in_row(row):
         except ValueError:
             # Not a pure number - this is good!
             pass
-        
+
         # Score this cell based on how likely it is to be a description
         # Longer text with more letters = higher score
         letter_count = sum(1 for c in cell_str if c.isalpha())
-        
+
         # Must have at least some letters to be a description
         if letter_count < 3:
             continue
-        
+
         # Score = number of letters (prefer text over numbers)
         score = letter_count
-        
+
         if score > best_score:
             best_score = score
             best_candidate = cell_str
-    
+
     return best_candidate
 
 def merge_split_rows(tables):
     """
     Merges rows that were split due to white lines in PDF tables.
-    
+
     Detects continuation rows (rows with only description text but no item number/value)
     and merges them back into the previous data row's description.
-    
+
     Example:
         Row N:   ['23', None, 'Bien', '32', 'UNIDADES DE', '5.50', ..., '176.00']
         Row N+1: [None, '', '', '', 'AGUACATE', '', '', '', '', '']  ← continuation
-        
+
         After merge:
         Row N:   ['23', None, 'Bien', '32', 'UNIDADES DE AGUACATE', '5.50', ..., '176.00']
         Row N+1: removed
     """
     if not tables:
         return tables
-    
+
     merged = []
     i = 0
     while i < len(tables):
         current_row = list(tables[i]) if tables[i] else []
-        
+
         # Look ahead to merge any continuation rows
         j = i + 1
         while j < len(tables):
             next_row = tables[j]
             if not next_row:
                 break
-            
+
             # Check if next_row is a continuation row:
             # 1. No item number (no digit) in first 5 cells
             # 2. No numeric values anywhere
@@ -175,7 +175,7 @@ def merge_split_rows(tables):
                     if cell_str.isdigit():
                         has_item_number = True
                         break
-            
+
             has_numeric_value = False
             text_fragments = []
             for cell in next_row:
@@ -196,11 +196,11 @@ def merge_split_rows(tables):
                     if len(cell_str) >= 3 and cell_upper not in ['BIEN', 'SERVICIO', 'B/S']:
                         if not cell_upper.startswith('IVA') and not cell_upper.startswith('ISR'):
                             text_fragments.append(cell_str)
-            
+
             # If it's a continuation row, merge text into current row's description
             if not has_item_number and not has_numeric_value and text_fragments:
                 continuation_text = " ".join(text_fragments)
-                
+
                 # Find description cell in current row and append the continuation
                 for k, cell in enumerate(current_row):
                     if cell is None:
@@ -224,15 +224,15 @@ def merge_split_rows(tables):
                     if len(cell_str) >= 3:
                         current_row[k] = cell_str + " " + continuation_text
                         break
-                
+
                 j += 1  # Move to next row, continue checking for more continuations
             else:
                 # Not a continuation, stop merging
                 break
-        
+
         merged.append(current_row)
         i = j  # Skip past any merged continuation rows
-    
+
     return merged
 
 def fuzzy_match_category(description, cultivados, abarrotes, threshold=80):
@@ -262,7 +262,7 @@ def fuzzy_match_category(description, cultivados, abarrotes, threshold=80):
 
 # --- TRUCO CSS PARA TRADUCIR LA INTERFAZ A ESPAÑOL ---
 st.markdown("""
-    <style> 
+    <style>
         div[data-testid="stFileUploader"] label p {
             font-size: 40px !important;
         }
@@ -307,17 +307,17 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
         # Get municipality info from user selection
         user_m_id = MUNICIPIOS_OPCIONES[selected_municipio]
         user_m_name = selected_municipio
-        
+
         input_buffer = io.BytesIO(uploaded_xlsx.read())
         wb = openpyxl.load_workbook(input_buffer)
-        ws = wb.active 
-        
+        ws = wb.active
+
         if "Extra Detalles" not in wb.sheetnames:
             ws_det = wb.create_sheet("Extra Detalles")
             ws_det.append(['Archivo PDF', 'Nombre Emisor', 'NIT Emisor', 'NIT Receptor', 'Num. DTE', 'Municipio', 'Alerta % Abarrotes'])
         else:
             ws_det = wb["Extra Detalles"]
-        
+
         # Create sheet for unmatched items
         if "Items Sin Clasificar" not in wb.sheetnames:
             ws_unmatched = wb.create_sheet("Items Sin Clasificar")
@@ -327,12 +327,12 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
 
         # 1. Map Excel Columns dynamically
         col_map = {}
-        for row in ws.iter_rows(min_row=1, max_row=15): 
+        for row in ws.iter_rows(min_row=1, max_row=15):
             for cell in row:
                 if type(cell).__name__ == 'MergedCell': continue
                 if not cell.value: continue
                 val = normalize_text(str(cell.value))
-                
+
                 if 'abarrotes' in val: col_map['abar'] = cell.column
                 if 'agricultura' in val: col_map['agri'] = cell.column
                 if 'escuela' in val or 'establecimiento' in val: col_map['escuelas'] = cell.column
@@ -352,7 +352,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
             st.error(f"No encontré las columnas base en el Excel.")
             st.stop()
 
-        
+
         EXCEL_MAPPINGS = {
             1: "totonicapán", 2: "san cristobal", 3: "san francisco", 4: "san andres",
             5: "momostenango", 6: "santa maria", 7: "santa lucia", 8: "san bartolo"
@@ -369,7 +369,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                 if key_squished in row_squished:
                     row_map[m_id] = row_ex[0].row
 
-        batch_totals = {m_id: {'abar': 0.0, 'agri': 0.0, 'emisores': set(), 'receptores': set()} for m_id in MUNICIPIOS.keys()}
+        batch_totals = {m_id: {'abar': 0.0, 'agri': 0.0, 'emisores': set(), 'receptores': set()} for m_id in MUNICIPIOS_OPCIONES.values()}
         new_count = 0
         skipped_non_standard = []  # Track non-standard receipts
         progress_bar = st.progress(0)
@@ -382,27 +382,27 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                 for p in pdf.pages:
                     t = p.extract_table()
                     if t: tables.extend(t)
-                
+
                 # Merge rows that were split by white lines in the PDF
                 tables = merge_split_rows(tables)
 
                 # VALIDATION: Check if this is a standard SAT factura
                 # Standard facturas have specific markers that proformas/cotizaciones don't
                 is_standard_factura = False
-                
+
                 # Check 1: Must have "Número de DTE" (unique to SAT facturas)
                 has_dte = bool(re.search(r'N[úu]mero\s*de\s*DTE', text, re.IGNORECASE))
-                
+
                 # Check 2: Must have "NÚMERO DE AUTORIZACIÓN" (SAT authorization)
                 has_autorizacion = bool(re.search(r'N[úu]mero\s*de\s*Autorizaci[óo]n', text, re.IGNORECASE))
-                
+
                 # Check 3: Must have "Nit Emisor" in standard format
                 has_nit_emisor = bool(re.search(r'Nit\s*Emisor', text, re.IGNORECASE))
-                
+
                 # Must have at least 2 of the 3 markers to be considered a valid factura
                 marker_count = sum([has_dte, has_autorizacion, has_nit_emisor])
                 is_standard_factura = marker_count >= 2
-                
+
                 if not is_standard_factura:
                     skipped_non_standard.append(pdf_file.name)
                     progress_bar.progress((i + 1) / len(uploaded_pdfs))
@@ -417,7 +417,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
 
                 if m_id:
                     abar_sum, agri_sum = 0, 0
-                    
+
                     cultivados = [
                         # frutas
                         'banano', 'bananano',                          # triple-n typo
@@ -439,7 +439,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'mashan', 'apazote', 'apasote',                # apazote misspelling
                         'zacate', 'tusa', 'laurel', 'tomio', 'tomillo', 'albahaca',
                         # granos frescos
-                        'maiz', 'cebada', 'cabada'                   # cebada typo
+                        'maiz', 'cebada', 'cabada',                   # cebada typo
                         'trigo', 'arveja', 'haba', 'azote',
                         'ajonjoli', 'ajonjolin',                       # ajonjoli variant spelling
                         # chiles cultivados (qualified only -- bare "chile" stays unmatched)
@@ -454,7 +454,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'tomillo', 'clavo', 'pimienta', 'comino', 'achiote', 'achote',          # achiote typo
                         'canela', 'laurel', 'laure', 'pepitoria', 'pepitorio', 'mani', 'mania', 'manilla'
                     ]
-                    
+
                     abarrotes = [
                         # semillas secas / procesadas
                         'pepita', 'frijol sellado',
@@ -471,12 +471,12 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'avena', 'abena',                               # avena typo
                         'corazon de trigo',
                         'chaomein', 'chow mein', 'chao mein', 'chaumein', 'cahomein',
-                        'mosh',                                         
+                        'mosh',
                         # harinas / mezclas
                         'maseca', 'incaparina', 'protemas', 'atol', 'harina', 'pinol',
                         # aceites / condimentos
                         'aceite', 'sal', 'azucar', 'vinagre',
-                        'pimiento en polvo',                           
+                        'pimiento en polvo',
                         # otros
                         'arroz', 'consome', 'concentrado', 'levadura', 'agua pura', 'bebida',
                         # chiles procesados / secos
@@ -484,15 +484,15 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         # frijol procesado / seco
                         'chile pasa', 'chila pasa',                    # chila typo
                         'chile guaque', 'chile guaca',                 # guaca typo (muy comun)
-                        'chile chocolate', 'chile negro' 
-                        
+                        'chile chocolate', 'chile negro'
+
                     ]
-                    
+
                     # Find the Total column and Description column indices
                     # ONLY search in the first table's header rows (first 5 rows max)
                     total_col_idx = -1
                     desc_col_idx = -1
-                    
+
                     if tables:
                         header_rows = tables[:min(5, len(tables))]
                         for row_tbl in header_rows:
@@ -500,18 +500,18 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                             for idx, cell in enumerate(row_tbl):
                                 if not cell: continue
                                 cell_norm = normalize_text(str(cell))
-                                
+
                                 # Find Total column (has "Total" and "(Q)")
                                 if 'total' in cell_norm and 'descuento' not in cell_norm and '(q)' in cell_norm:
                                     total_col_idx = idx
-                                
+
                                 # Find Description column
                                 if 'descripcion' in cell_norm:
                                     desc_col_idx = idx
-                            
+
                             if total_col_idx != -1 and desc_col_idx != -1:
                                 break
-                    
+
                     # If we didn't find the description column, assume it's index 3
                     if desc_col_idx == -1:
                         desc_col_idx = 3
@@ -519,18 +519,18 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                     # Process each row in the tables
                     for row_tbl in tables:
                         if not row_tbl: continue
-                        
+
                         # Build full row text for matching
                         row_text = " ".join([str(x) for x in row_tbl if x])
                         row_text_normalized = normalize_text(row_text)
-                        
+
                         # FILTER 1: Skip rows with administrative keywords
-                        skip_keywords = ['totales', 'superintendencia', 'datos del certificador', 
+                        skip_keywords = ['totales', 'superintendencia', 'datos del certificador',
                                         'contribuyendo', 'sujeto a pagos', 'no genera derecho',
                                         'descripcion', 'cantidad', 'unitario', 'descuentos', 'impuestos']
                         if any(keyword in row_text_normalized for keyword in skip_keywords):
                             continue
-                        
+
                         # FILTER 2: Check if this looks like a data row
                         # Look for a digit in the first few cells (item numbers like 1, 2, 3...)
                         is_data_row = False
@@ -540,26 +540,26 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                                 if cell_str.isdigit():
                                     is_data_row = True
                                     break
-                        
+
                         if not is_data_row:
                             continue
-                        
+
                         # FILTER 3: Skip "artifact rows" caused by white lines splitting a row
                         # These rows have very few non-empty cells (usually just the item number)
                         non_empty_cells = sum(1 for c in row_tbl if c and str(c).strip())
                         if non_empty_cells < 3:
                             continue
-                        
+
                         # Extract the value
                         val = extract_value_from_row(row_tbl, total_col_idx)
-                        
+
                         # Skip rows with zero or invalid value
                         if val <= 0:
                             continue
-                        
+
                         # Use intelligent description finder
                         description = find_description_in_row(row_tbl)
-                        
+
                         # Fallback chain: try progressively more aggressive methods
                         if not description:
                             # Method 1: Try the detected description column
@@ -567,12 +567,12 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                                 cell = row_tbl[desc_col_idx]
                                 if cell:
                                     description = str(cell).strip()
-                        
+
                         if not description:
                             # Method 2: Try index 3 (standard description column)
                             if len(row_tbl) > 3 and row_tbl[3]:
                                 description = str(row_tbl[3]).strip()
-                        
+
                         if not description:
                             # Method 3: Find the longest non-numeric cell
                             longest = ""
@@ -590,20 +590,20 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                                         longest = cell_str
                             if longest:
                                 description = longest
-                        
+
                         if not description:
                             # Method 4: Just use the longest cell period (even if it's a number)
                             longest = max((str(c).strip() for c in row_tbl if c), key=len, default="")
                             if longest:
                                 description = longest
-                        
+
                         if not description:
                             # Method 5: Last resort - use row text
                             description = "REVISAR: " + row_text[:50]
-                        
+
                         # Use fuzzy matching to categorize (using full row text for matching)
                         category, matched_word = fuzzy_match_category(row_text, cultivados, abarrotes, threshold=80)
-                        
+
                         if category == 'agricultura':
                             agri_sum += val
                         elif category == 'abarrotes':
@@ -611,11 +611,11 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         elif category == 'unmatched':
                             # Add ONLY the description to unmatched items sheet
                             ws_unmatched.append([description, m_name, val, dte_val])
-                    
+
                     nit_e_match = re.search(r'Emisor:\s*([0-9Kk\-]+)', text, re.I)
                     nit_r_match = re.search(r'Receptor:\s*([0-9Kk\-]+)', text, re.I)
                     name_e_match = re.search(r'(?:Factura(?:\s*Pequeño\s*Contribuyente)?)\s*\n+(.*?)\n+Nit\s*Emisor', text, re.IGNORECASE | re.DOTALL)
-                    
+
                     nit_e = nit_e_match.group(1).strip() if nit_e_match else "N/A"
                     nit_r = nit_r_match.group(1).strip() if nit_r_match else "N/A"
                     raw_name = re.sub(r'\s+', ' ', name_e_match.group(1).strip() if name_e_match else "N/A")
@@ -644,7 +644,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
             if 'abar' in col_map and data['abar'] > 0:
                 target_cell = get_master_cell(ws, r_idx, col_map['abar'])
                 target_cell.value = safe_float(target_cell.value) + data['abar']
-            
+
             if 'agri' in col_map and data['agri'] > 0:
                 target_cell = get_master_cell(ws, r_idx, col_map['agri'])
                 target_cell.value = safe_float(target_cell.value) + data['agri']
@@ -652,30 +652,30 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
             if 'escuelas' in col_map and len(data['receptores']) > 0:
                 target_cell = get_master_cell(ws, r_idx, col_map['escuelas'])
                 target_cell.value = int(safe_float(target_cell.value)) + len(data['receptores'])
-            
+
             if 'productores' in col_map and len(data['emisores']) > 0:
                 target_cell = get_master_cell(ws, r_idx, col_map['productores'])
                 target_cell.value = int(safe_float(target_cell.value)) + len(data['emisores'])
 
         # 6. Format "Extra Detalles" and "Items Sin Clasificar"
         thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        
+
         # Format Extra Detalles
         for col in ws_det.columns:
             max_length = 0
-            col_letter = get_column_letter(col[0].column) 
+            col_letter = get_column_letter(col[0].column)
             for cell in col:
-                cell.border = thin_border 
+                cell.border = thin_border
                 try: max_length = max(max_length, len(str(cell.value)))
                 except: pass
             ws_det.column_dimensions[col_letter].width = max_length + 2
-        
+
         # Format Items Sin Clasificar
         for col in ws_unmatched.columns:
             max_length = 0
-            col_letter = get_column_letter(col[0].column) 
+            col_letter = get_column_letter(col[0].column)
             for cell in col:
-                cell.border = thin_border 
+                cell.border = thin_border
                 try: max_length = max(max_length, len(str(cell.value)))
                 except: pass
             ws_unmatched.column_dimensions[col_letter].width = max_length + 2
@@ -683,26 +683,26 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
         # 7. Final Export
         output = io.BytesIO()
         wb.save(output)
-        
+
         # Count unmatched items (excluding header row)
         unmatched_count = ws_unmatched.max_row - 1 if ws_unmatched.max_row > 1 else 0
-        
+
         success_msg = f"¡Proceso completado! {new_count} facturas procesadas y agregadas al Excel con éxito."
         if unmatched_count > 0:
             success_msg += f"""\n\n⚠️ {unmatched_count} items sin clasificar encontrados. Están en la tercera hoja del archivo de Excel, 'Items sin Clasificar', para revisión manual.
                             Los totales de esos productos no fueron agregados a la cantidad de la primera hoja"""
-        
+
         st.success(success_msg)
-        
+
         # Show warning for non-standard receipts that were skipped
         if skipped_non_standard:
             warning_msg = f"⚠️ **{len(skipped_non_standard)} factura(s) no estándar fueron ignoradas** (proformas, cotizaciones, u otros formatos no oficiales). Estas deben procesarse manualmente:\n\n"
             for pdf_name in skipped_non_standard:
                 warning_msg += f"- {pdf_name}\n"
             st.warning(warning_msg)
-        
+
         output.seek(0)
-        st.download_button("Descargar Reporte Final", data=output.getvalue(), 
+        st.download_button("Descargar Reporte Final", data=output.getvalue(),
                            file_name="Reporte_MAGA_Actualizado.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     except Exception as e:
