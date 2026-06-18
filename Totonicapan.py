@@ -184,13 +184,15 @@ def merge_split_rows(tables):
                 cell_str = str(cell).strip()
                 if not cell_str:
                     continue
-                # Check if it's a number
-                try:
-                    val = float(cell_str.replace(',', '.').replace(' ', ''))
-                    if val > 0:
+                # Check if it's a number (comma-aware: '1,980.00' is a number, not text).
+                # Without this, a TOTALES summary row like ['TOTALES:', ..., '1,980.00', '']
+                # parses as text and gets mis-merged into the previous item, which is then
+                # dropped by the 'totales' skip-keyword filter (losing the last line item).
+                if re.fullmatch(r'[\d.,]+', cell_str):
+                    if clean_currency(cell_str) > 0:
                         has_numeric_value = True
                         break
-                except ValueError:
+                else:
                     # Not a number - could be description text
                     cell_upper = cell_str.upper()
                     if len(cell_str) >= 3 and cell_upper not in ['BIEN', 'SERVICIO', 'B/S']:
@@ -251,12 +253,14 @@ def fuzzy_match_category(description, cultivados, abarrotes, threshold=80):
     desc_norm = re.sub(r'(\d)([a-z])', r'\1 \2', desc_norm)
 
     # (e?s)? tolerates Spanish plurals: banano/bananos, limon/limones, etc.
-    for kw in cultivados:
-        if re.search(r'\b' + re.escape(kw) + r'(e?s)?\b', desc_norm):
-            return ('agricultura', kw)
+    # Check abarrotes FIRST so specific processed items (e.g. 'carne molida',
+    # 'carne de res molida') win over the generic 'carne'/'res' in cultivados.
     for kw in abarrotes:
         if re.search(r'\b' + re.escape(kw) + r'(e?s)?\b', desc_norm):
             return ('abarrotes', kw)
+    for kw in cultivados:
+        if re.search(r'\b' + re.escape(kw) + r'(e?s)?\b', desc_norm):
+            return ('agricultura', kw)
 
     return ('unmatched', None)
 
@@ -353,6 +357,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
             st.stop()
 
 
+
         EXCEL_MAPPINGS = {
             1: "totonicapán", 2: "san cristobal", 3: "san francisco", 4: "san andres",
             5: "momostenango", 6: "santa maria", 7: "santa lucia", 8: "san bartolo"
@@ -423,7 +428,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'banano', 'bananano',                          # triple-n typo
                         'platano', 'pina', 'papaya', 'sandia', 'melon', 'mango',
                         'naranja', 'limon', 'limom', 'limo',           # limon typos
-                        'manzana', 'aguacate', 'jamaica', 'tamarindo',
+                        'manzana', 'aguacate', 'tamarindo',
                         'guayaba', 'fresa', 'mora', 'arandano', 'orandano',
                         # verduras / hortalizas
                         'tomate', 'miltomate', 'cebolla', 'zanahoria', 'ejote',
@@ -434,34 +439,31 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'espinaca', 'bledo', 'rabano', 'lechuga', 'pepino',
                         'chipolin', 'chipilin',
                         # hierbas / aromaticas
-                        'perejil', 'ajo', 'apio', 'cilantro', 'cilandro', 'oregano', 'romero',   # removed duplicate 'chipilin'
+                        'perejil', 'ajo', 'apio', 'cilantro', 'cilandro',   # removed duplicate 'chipilin'
                         'hierba', 'hierba buena', 'hierbabuena', 'hirbabuena',
                         'mashan', 'apazote', 'apasote',                # apazote misspelling
-                        'zacate', 'tusa', 'laurel', 'tomio', 'tomillo', 'albahaca',
                         # granos frescos
                         'maiz', 'cebada', 'cabada',                   # cebada typo
                         'trigo', 'arveja', 'haba', 'azote',
-                        'ajonjoli', 'ajonjolin',                       # ajonjoli variant spelling
                         # chiles cultivados (qualified only -- bare "chile" stays unmatched)
                         'chile pimiento', 'chile pimento', 'chile pimienta',            # pimento typo
-                        'chile cobanero', 'chile verde', 'chile jalapeno', 'chile chiltepe',
+                        'chile verde', 'chile jalapeno', 'chile chiltepe',
                         'chile dulce', 'chile morron',
                         # frijol cultivado
-                        'frijol ejotero', 'frijol tierno', 'frijol negro', 'frijol vaina real',  'frijol seco',
+                        'frijol ejotero', 'frijol tierno', 'frijol negro', 'frijol seco',
                         'frijol rojo', 'frijol colorado', 'frijol blanco', 'frijol en grano',
                         #más
-                        'carne de res', 'res', 'pescado', 'huevo', 'pollo', 'pechuga', 'pierna', 'muslo',
-                        'tomillo', 'clavo', 'pimienta', 'comino', 'achiote', 'achote',          # achiote typo
-                        'canela', 'laurel', 'laure', 'pepitoria', 'pepitorio', 'mani', 'mania', 'manilla'
+                        'res', 'pescado', 'huevo', 'pollo', 'pechuga', 'pierna', 'muslo',
+                        'pimienta', 'carne', 'leche', 'queso', 'arroz pesado'
                     ]
 
                     abarrotes = [
                         # semillas secas / procesadas
                         'pepita', 'frijol sellado',
                         # proteina animal
-                        'carne', 'embutido', 'chorizo', 'salchicha', 'jamon',
+                        'embutido', 'chorizo', 'salchicha', 'jamon', 'carne molida', 'carne de res molida',
                         # lacteos
-                        'crema', 'leche', 'queso', 'yogur', 'mantequilla', 'margarina',
+                        'crema', 'yogur', 'mantequilla', 'margarina',
                         # panaderia
                         'pan', 'pirujo',                      # "pirujo" sometimes appears without "pan"; cevada = cebada typo
                         'tostada', 'tortilla', 'galleta', 'chocolate',
@@ -478,14 +480,20 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'aceite', 'sal', 'azucar', 'vinagre',
                         'pimiento en polvo',
                         # otros
-                        'arroz', 'consome', 'concentrado', 'levadura', 'agua pura', 'bebida',
+                        'arroz blanco', 'consome', 'concentrado', 'levadura', 'agua pura', 'bebida',
+                        'arroz amarillo', 'arroz molido',
                         # chiles procesados / secos
                         'chile seco', 'chile rojo', 'chile en polvo', 'chile molido',
                         # frijol procesado / seco
                         'chile pasa', 'chila pasa',                    # chila typo
                         'chile guaque', 'chile guaca',                 # guaca typo (muy comun)
-                        'chile chocolate', 'chile negro'
-
+                        'chile chocolate', 'chile negro',
+                        #etc
+                        'jamaica', 'romero', 'zacate', 'tusa', 'laurel', 'tomillo', 'tomio',
+                        'albahaca', 'ajonjoli', 'ajonjolin', 'chile cobanero', 'chile coban', 
+                        'frijol vaina real', 'clavo', 'comino', 'achiote', 'canela', 
+                        'pepitoria', 'mani', 'manilla', 'achote', 'laure', 'mania', 'pepitorio',
+                        'oregano'
                     ]
 
                     # Find the Total column and Description column indices
