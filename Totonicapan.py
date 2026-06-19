@@ -454,7 +454,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'frijol rojo', 'frijol colorado', 'frijol blanco', 'frijol en grano',
                         #más
                         'res', 'pescado', 'huevo', 'pollo', 'pechuga', 'pierna', 'muslo',
-                        'pimienta', 'carne', 'leche', 'queso', 'arroz pesado'
+                        'pimienta', 'carne', 'leche', 'queso', 'arroz pesado', 'acelga'
                     ]
 
                     abarrotes = [
