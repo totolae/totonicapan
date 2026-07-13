@@ -429,7 +429,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'platano', 'pina', 'papaya', 'sandia', 'melon', 'mango',
                         'naranja', 'limon', 'limom', 'limo',           # limon typos
                         'manzana', 'aguacate', 'tamarindo',
-                        'guayaba', 'fresa', 'mora', 'arandano', 'orandano',
+                        'guayaba', 'fresa', 'mora', 'arandano', 'orandano', 'bannano',
                         # verduras / hortalizas
                         'tomate', 'miltomate', 'cebolla', 'zanahoria', 'ejote',
                         'guisquil', 'gusiquil', 'guisqul',             # guisquil typos
@@ -493,7 +493,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'albahaca', 'ajonjoli', 'ajonjolin', 'chile cobanero', 'chile coban', 
                         'frijol vaina real', 'clavo', 'comino', 'achiote', 'canela', 
                         'pepitoria', 'mani', 'manilla', 'achote', 'laure', 'mania', 'pepitorio',
-                        'oregano'
+                        'oregano', 'sacate'
                     ]
 
                     # Find the Total column and Description column indices
