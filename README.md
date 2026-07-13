@@ -1,5 +1,5 @@
 # magafacturas
-Lugar por la automatización de facturas por la LAE
+Lugar por la automatización de facturas por la PAE
 
 PARA CAMBIAR EL MENU:
 CONTROL + B PARA BUSCAR, PONE ABARROTES O CULTIVADOS, Y CAMBIA LA LISTA
