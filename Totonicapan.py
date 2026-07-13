@@ -77,6 +77,51 @@ def extract_value_from_row(row_list, total_idx):
         if val > 0: return val
     return 0.0
 
+def extract_school_name(text):
+    """
+    Extracts the school name from the 'Nombre Receptor:' field of a SAT FEL factura.
+
+    In the extracted PDF text the left column (receptor data) and the right column
+    (fechas / moneda) share the same lines, e.g.:
+
+        Nombre Receptor: CONSEJO EDUCATIVO, EORM J.M. CANTON Fecha y hora de certificación: ...
+        CHUIXCHIMAL
+        Moneda: GTQ
+
+    So the name starts after 'Nombre Receptor:' and may continue on following lines
+    until a new labeled field appears. Right-column text ('Fecha y hora', 'Moneda:')
+    and the alternate-layout 'Dirección comprador:' field are stripped from each line.
+    """
+    lines = text.split('\n')
+    name_parts = []
+    started = False
+    for line in lines:
+        if not started:
+            m = re.match(r'\s*Nombre\s*Receptor:\s*(.*)', line, re.IGNORECASE)
+            if not m:
+                continue
+            started = True
+            part = m.group(1)
+        else:
+            # A continuation line; stop at the next labeled field or the items table.
+            if line.strip() == '.' or re.match(
+                r'(Moneda|#No|NIT|Nit|N[úu]mero|Serie|Fecha|Direcci[óo]n)\b',
+                line.strip(), re.IGNORECASE
+            ):
+                break
+            part = line
+        part = re.split(r'(?i)Fecha\s*y\s*hora', part)[0]
+        part = re.split(r'(?i)Moneda\s*:', part)[0]
+        part = re.split(r'(?i)Direcci[óo]n\s*comprador', part)[0]
+        part = part.strip()
+        if part:
+            name_parts.append(part)
+        else:
+            break
+    name = re.sub(r'\s+', ' ', ' '.join(name_parts)).strip()
+    name = name.strip('"').strip()  # some names come fully quoted: "ORGANIZACION..."
+    return name or "N/A"
+
 def get_master_cell(ws, r_idx, c_idx):
     cell = ws.cell(row=r_idx, column=c_idx)
     if type(cell).__name__ == 'MergedCell':
@@ -184,15 +229,13 @@ def merge_split_rows(tables):
                 cell_str = str(cell).strip()
                 if not cell_str:
                     continue
-                # Check if it's a number (comma-aware: '1,980.00' is a number, not text).
-                # Without this, a TOTALES summary row like ['TOTALES:', ..., '1,980.00', '']
-                # parses as text and gets mis-merged into the previous item, which is then
-                # dropped by the 'totales' skip-keyword filter (losing the last line item).
-                if re.fullmatch(r'[\d.,]+', cell_str):
-                    if clean_currency(cell_str) > 0:
+                # Check if it's a number
+                try:
+                    val = float(cell_str.replace(',', '.').replace(' ', ''))
+                    if val > 0:
                         has_numeric_value = True
                         break
-                else:
+                except ValueError:
                     # Not a number - could be description text
                     cell_upper = cell_str.upper()
                     if len(cell_str) >= 3 and cell_upper not in ['BIEN', 'SERVICIO', 'B/S']:
@@ -253,14 +296,12 @@ def fuzzy_match_category(description, cultivados, abarrotes, threshold=80):
     desc_norm = re.sub(r'(\d)([a-z])', r'\1 \2', desc_norm)
 
     # (e?s)? tolerates Spanish plurals: banano/bananos, limon/limones, etc.
-    # Check abarrotes FIRST so specific processed items (e.g. 'carne molida',
-    # 'carne de res molida') win over the generic 'carne'/'res' in cultivados.
-    for kw in abarrotes:
-        if re.search(r'\b' + re.escape(kw) + r'(e?s)?\b', desc_norm):
-            return ('abarrotes', kw)
     for kw in cultivados:
         if re.search(r'\b' + re.escape(kw) + r'(e?s)?\b', desc_norm):
             return ('agricultura', kw)
+    for kw in abarrotes:
+        if re.search(r'\b' + re.escape(kw) + r'(e?s)?\b', desc_norm):
+            return ('abarrotes', kw)
 
     return ('unmatched', None)
 
@@ -318,9 +359,14 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
 
         if "Extra Detalles" not in wb.sheetnames:
             ws_det = wb.create_sheet("Extra Detalles")
-            ws_det.append(['Archivo PDF', 'Nombre Emisor', 'NIT Emisor', 'NIT Receptor', 'Num. DTE', 'Municipio', 'Alerta % Abarrotes'])
+            ws_det.append(['Archivo PDF', 'Nombre Emisor', 'NIT Emisor', 'NIT Receptor', 'Nombre Escuela', 'Num. DTE', 'Municipio', 'Alerta % Abarrotes'])
         else:
             ws_det = wb["Extra Detalles"]
+            # Excel files from older runs lack the 'Nombre Escuela' column:
+            # insert it after 'NIT Receptor' so old and new rows stay aligned.
+            if normalize_text(str(ws_det.cell(row=1, column=5).value or "")) != normalize_text("Nombre Escuela"):
+                ws_det.insert_cols(5)
+                ws_det.cell(row=1, column=5).value = "Nombre Escuela"
 
         # Create sheet for unmatched items
         if "Items Sin Clasificar" not in wb.sheetnames:
@@ -355,7 +401,6 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
         if 'abar' not in col_map or 'agri' not in col_map:
             st.error(f"No encontré las columnas base en el Excel.")
             st.stop()
-
 
 
         EXCEL_MAPPINGS = {
@@ -428,8 +473,8 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'banano', 'bananano',                          # triple-n typo
                         'platano', 'pina', 'papaya', 'sandia', 'melon', 'mango',
                         'naranja', 'limon', 'limom', 'limo',           # limon typos
-                        'manzana', 'aguacate', 'tamarindo',
-                        'guayaba', 'fresa', 'mora', 'arandano', 'orandano', 'bannano',
+                        'manzana', 'aguacate', 'jamaica', 'tamarindo',
+                        'guayaba', 'fresa', 'mora', 'arandano', 'orandano',
                         # verduras / hortalizas
                         'tomate', 'miltomate', 'cebolla', 'zanahoria', 'ejote',
                         'guisquil', 'gusiquil', 'guisqul',             # guisquil typos
@@ -439,31 +484,34 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'espinaca', 'bledo', 'rabano', 'lechuga', 'pepino',
                         'chipolin', 'chipilin',
                         # hierbas / aromaticas
-                        'perejil', 'ajo', 'apio', 'cilantro', 'cilandro',   # removed duplicate 'chipilin'
+                        'perejil', 'ajo', 'apio', 'cilantro', 'oregano', 'romero',   # removed duplicate 'chipilin'
                         'hierba', 'hierba buena', 'hierbabuena', 'hirbabuena',
                         'mashan', 'apazote', 'apasote',                # apazote misspelling
+                        'zacate', 'tusa', 'laurel', 'tomio', 'tomillo', 'albahaca',
                         # granos frescos
                         'maiz', 'cebada', 'cabada',                   # cebada typo
                         'trigo', 'arveja', 'haba', 'azote',
+                        'ajonjoli', 'ajonjolin',                       # ajonjoli variant spelling
                         # chiles cultivados (qualified only -- bare "chile" stays unmatched)
                         'chile pimiento', 'chile pimento', 'chile pimienta',            # pimento typo
-                        'chile verde', 'chile jalapeno', 'chile chiltepe',
+                        'chile cobanero', 'chile verde', 'chile jalapeno', 'chile chiltepe',
                         'chile dulce', 'chile morron',
                         # frijol cultivado
-                        'frijol ejotero', 'frijol tierno', 'frijol negro', 'frijol seco',
+                        'frijol ejotero', 'frijol tierno', 'frijol negro', 'frijol vaina real',  'frijol seco',
                         'frijol rojo', 'frijol colorado', 'frijol blanco', 'frijol en grano',
                         #más
-                        'res', 'pescado', 'huevo', 'pollo', 'pechuga', 'pierna', 'muslo',
-                        'pimienta', 'carne', 'leche', 'queso', 'arroz pesado', 'acelga'
+                        'carne de res', 'res', 'pescado', 'huevo', 'pollo', 'pechuga', 'pierna', 'muslo',
+                        'tomillo', 'clavo', 'pimienta', 'comino', 'achiote', 'achote',          # achiote typo
+                        'canela', 'laurel', 'laure', 'pepitoria', 'pepitorio', 'mani', 'mania', 'manilla'
                     ]
 
                     abarrotes = [
                         # semillas secas / procesadas
                         'pepita', 'frijol sellado',
                         # proteina animal
-                        'embutido', 'chorizo', 'salchicha', 'jamon', 'carne molida', 'carne de res molida',
+                        'carne', 'embutido', 'chorizo', 'salchicha', 'jamon',
                         # lacteos
-                        'crema', 'yogur', 'mantequilla', 'margarina',
+                        'crema', 'leche', 'queso', 'yogur', 'mantequilla', 'margarina',
                         # panaderia
                         'pan', 'pirujo',                      # "pirujo" sometimes appears without "pan"; cevada = cebada typo
                         'tostada', 'tortilla', 'galleta', 'chocolate',
@@ -480,20 +528,14 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                         'aceite', 'sal', 'azucar', 'vinagre',
                         'pimiento en polvo',
                         # otros
-                        'arroz blanco', 'consome', 'concentrado', 'levadura', 'agua pura', 'bebida',
-                        'arroz amarillo', 'arroz molido',
+                        'arroz', 'consome', 'concentrado', 'levadura', 'agua pura', 'bebida',
                         # chiles procesados / secos
                         'chile seco', 'chile rojo', 'chile en polvo', 'chile molido',
                         # frijol procesado / seco
                         'chile pasa', 'chila pasa',                    # chila typo
                         'chile guaque', 'chile guaca',                 # guaca typo (muy comun)
-                        'chile chocolate', 'chile negro',
-                        #etc
-                        'jamaica', 'romero', 'zacate', 'tusa', 'laurel', 'tomillo', 'tomio',
-                        'albahaca', 'ajonjoli', 'ajonjolin', 'chile cobanero', 'chile coban', 
-                        'frijol vaina real', 'clavo', 'comino', 'achiote', 'canela', 
-                        'pepitoria', 'mani', 'manilla', 'achote', 'laure', 'mania', 'pepitorio',
-                        'oregano', 'sacate'
+                        'chile chocolate', 'chile negro'
+
                     ]
 
                     # Find the Total column and Description column indices
@@ -626,6 +668,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
 
                     nit_e = nit_e_match.group(1).strip() if nit_e_match else "N/A"
                     nit_r = nit_r_match.group(1).strip() if nit_r_match else "N/A"
+                    school_name = extract_school_name(text)
                     raw_name = re.sub(r'\s+', ' ', name_e_match.group(1).strip() if name_e_match else "N/A")
                     name_e = re.split(r'(?i)n[úu]mero\s*de\s*autorizaci[óo]n', raw_name)[0]
                     name_e = re.split(r'(?i)\bserie\b', name_e)[0].strip()
@@ -639,7 +682,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
                     perc_abar = (abar_sum / total_rec) if total_rec > 0 else 0
                     alert_status = "⚠️ ALERTA: >30%" if perc_abar > 0.30 else "OK"
 
-                    ws_det.append([pdf_file.name, name_e, nit_e, nit_r, dte_val, m_name, alert_status])
+                    ws_det.append([pdf_file.name, name_e, nit_e, nit_r, school_name, dte_val, m_name, alert_status])
                     new_count += 1
 
             progress_bar.progress((i + 1) / len(uploaded_pdfs))
