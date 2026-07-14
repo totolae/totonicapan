@@ -507,7 +507,7 @@ if st.button("INICIAR PROCESO") and uploaded_pdfs and uploaded_xlsx and municipi
 
                     abarrotes = [
                         # semillas secas / procesadas
-                        'pepita', 'frijol sellado',
+                        'pepita', 'frijol sellado', 'paq de', 'paquete de', 'chiper', 'australian', 'anchor', 'australia', 'suli',
                         # proteina animal
                         'carne', 'embutido', 'chorizo', 'salchicha', 'jamon',
                         # lacteos
